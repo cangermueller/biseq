@@ -4,7 +4,8 @@ import numpy as np
 import logging
 import os
 import h5py as h5
-from biseq import utils
+import biseq.hdf
+import biseq.dtypes
 
 
 class CountsSummerOpts(object):
@@ -19,12 +20,6 @@ class CountsSummerOpts(object):
     def __str__(self):
         return str(vars(self))
 
-def list_items(filename, path):
-    f = h5.File(filename)
-    items = list(f[path].keys())
-    f.close()
-    return items
-
 
 class CountsSummer(object):
     def __init__(self):
@@ -35,7 +30,7 @@ class CountsSummer(object):
         p = argparse.ArgumentParser(prog=os.path.basename(self.name),
                                     description='Sum counts for regions',
                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-        p.add_argument('regions_file', help='Txt regions file with chromo, start, end column', metavar='regions-file')
+        p.add_argument('regions_file', help='Regions file with chromo, start, end column', metavar='regions-file')
         p.add_argument('hdf_path', help='HDF path to input counts', metavar='hdf-path')
         p.add_argument('-o', '--out-hdf', help='Output HDF path', default=self.opts.out_hdf)
         p.add_argument('--datasets', help='Only apply to these datasets in HDF path', nargs='+')
@@ -55,25 +50,30 @@ class CountsSummer(object):
 
     def run(self):
         self.logger.info('Reading regions ...')
-        regions = pd.read_table(self.opts.regions_file, usecols=['chromo', 'start', 'end'])
-        infile, ingroup = utils.split_hdf_path(self.opts.hdf_path)
+        regions = pd.read_table(self.opts.regions_file,
+                                usecols=list(biseq.dtypes.INDEX.keys()),
+                                dtype=biseq.dtypes.INDEX)
+        infile, ingroup = biseq.hdf.split_filename(self.opts.hdf_path)
         datasets = self.opts.datasets
         if datasets is None:
-            datasets = list_items(infile, ingroup)
-        outfile, outgroup = utils.split_hdf_path(self.opts.out_hdf)
+            datasets = biseq.hdf.ls(infile, ingroup)
+        outfile, outgroup = biseq.hdf.split_filename(self.opts.out_hdf)
         self.logger.info('Summing counts ...')
         for dataset in datasets:
             path = os.path.join(ingroup, dataset)
             self.logger.info('  ' + path)
             counts = pd.read_hdf(infile, path)
             sum_counts = self.sum_counts(regions, counts)
+            assert sum_counts.shape[0] == regions.shape[0]
             sum_counts.to_hdf(outfile, os.path.join(outgroup, dataset))
         self.logger.info('Done!')
 
 
     def sum_counts_chromo(self, regions, counts):
         chromo = str(regions['chromo'].iloc[0])
-        index = pd.MultiIndex.from_arrays((regions['chromo'], regions['start'], regions['end']), names=['chromo', 'start', 'end'])
+        index = pd.MultiIndex.from_arrays((regions['chromo'].astype(np.str),
+                                           regions['start'], regions['end']),
+                                          names=['chromo', 'start', 'end'])
         sum_counts = pd.DataFrame(0.0, index=index, columns=counts.columns, dtype=np.float32)
         if chromo not in counts.index:
             return sum_counts

@@ -65,15 +65,15 @@ class CountsSummer(object):
             counts = pd.read_hdf(infile, path)
             sum_counts = self.sum_counts(regions, counts)
             assert sum_counts.shape[0] == regions.shape[0]
-            sum_counts.to_hdf(outfile, os.path.join(outgroup, dataset))
+            sum_counts.to_hdf(outfile, os.path.join(outgroup, dataset),
+                              format='t', data_columns=['chromo', 'start', 'end', 'nmet', 'ntot'])
         self.logger.info('Done!')
 
 
     def sum_counts_chromo(self, regions, counts):
         chromo = str(regions['chromo'].iloc[0])
-        index = pd.MultiIndex.from_arrays((regions['chromo'].astype(np.str),
-                                           regions['start'], regions['end']),
-                                          names=['chromo', 'start', 'end'])
+        index = pd.MultiIndex.from_arrays((regions['start'], regions['end']),
+                                          names=['start', 'end'])
         sum_counts = pd.DataFrame(0.0, index=index, columns=counts.columns, dtype=np.float32)
         if chromo not in counts.index:
             return sum_counts

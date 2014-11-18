@@ -67,7 +67,9 @@ class Summarizer(object):
             rv =  self.apply(regions, counts)
             assert rv.shape[0] == regions.shape[0]
             rv.to_hdf(outfile, os.path.join(outgroup, dataset),
-                              format='t', data_columns=True)
+                      format='t',
+                      data_columns=list(rv.index.names) + list(rv.columns))
+
         self.logger.info('Done!')
 
     def apply(self, regions, counts):

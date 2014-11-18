@@ -16,6 +16,9 @@ if __name__ == '__main__':
     p.add_argument('--start', help='Start index', type=int)
     p.add_argument('--stop', help='Stop index', type=int)
     p.add_argument('--head', help='Print first 10 lines', action='store_true')
+    p.add_argument('--reset_index', help='Reset index', action='store_true')
+    p.add_argument('--out_hdf', help='Write to HDF file')
+
     opts = p.parse_args()
     if opts.head == True and opts.start is None and opts.stop is None:
         opts.stop = 10
@@ -23,8 +26,17 @@ if __name__ == '__main__':
     for hdf_path in opts.hdf_path:
         file, group = biseq.hdf.split_filename(hdf_path)
         if group == '/':
-            raise RuntimeError('No HDF group provided!')
+            groups = biseq.hdf.ls(file, group)
+        else:
+            groups = [group]
 
-        df = pd.read_hdf(file, group, where=opts.where, start=opts.start,
-                         stop=opts.stop)
-        print(df)
+        for group in groups:
+            df = pd.read_hdf(file, group, where=opts.where, start=opts.start,
+                            stop=opts.stop)
+            if opts.reset_index:
+                df.reset_index(inplace=True)
+            if opts.out_hdf:
+                file, group = biseq.hdf.split_filename(opts.out_hdf)
+                df.to_hdf(file, group, format='t', data_columns=True)
+            else:
+                print(df.to_string(index=not opts.reset_index))

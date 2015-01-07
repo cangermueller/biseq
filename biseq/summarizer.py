@@ -79,7 +79,7 @@ class Summarizer(object):
         chromo = str(regions['chromo'].iloc[0])
         index = pd.MultiIndex.from_arrays((regions['start'], regions['end']),
                                           names=['start', 'end'])
-        sum_counts = pd.DataFrame(0.0, index=index, columns=['rate_mean', 'rate_var', 'nmet', 'ntot', 'ncpg_met', 'ncpg_tot'], dtype=np.float32)
+        sum_counts = pd.DataFrame(0.0, index=index, columns=['rate_mean', 'rate_var', 'nmet', 'ntot', 'ncpg_met', 'ncpg_tot', 'dist_mean', 'dist_median'], dtype=np.float32)
         if chromo not in counts.index:
             return sum_counts
         counts_chromo = counts.loc[chromo]
@@ -87,6 +87,7 @@ class Summarizer(object):
         i = 0
         rv = sum_counts
         for t, region in regions.iterrows():
+            mid = int(0.5 * (region.start + region.end))
             region_counts = counts_chromo[(counts_chromo['start'] >= region['start']) & (counts_chromo['end'] <= region['end'])]
             if region_counts.shape[0] > 0:
                 r = rv.iloc[i, :]
@@ -97,5 +98,9 @@ class Summarizer(object):
                 r.ntot = region_counts.ntot.sum()
                 r.ncpg_met = (region_counts.nmet > 0).sum()
                 r.ncpg_tot = (region_counts.ntot > 0).sum()
+                dist = (region_counts.start - mid).abs()
+                #pdb.set_trace()
+                r.dist_mean = dist.mean()
+                r.dist_median = dist.median()
             i += 1
         return sum_counts

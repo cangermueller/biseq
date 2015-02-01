@@ -2,6 +2,7 @@
 
 from setuptools import setup
 from pip.req import parse_requirements
+import uuid
 import os
 import glob
 
@@ -17,7 +18,8 @@ def read(fname, split=False):
     return lines
 
 def requirements(fname='requirements.txt'):
-    return [str(r.req) for r in parse_requirements(abspath(fname))]
+    return [str(r.req) for r in parse_requirements(abspath(fname),
+                                                   session=uuid.uuid1())]
 
 setup(name='biseq',
       version='0.0.1',
